@@ -32,6 +32,8 @@ f_norm = (f - f.min()) / (f.max() - f.min())
 saliency = 1 - f_norm
 
 saliency_map = saliency[segments]
+saliency_map = cv2.GaussianBlur(saliency_map, (11, 11), 0)
+saliency_map = saliency_map ** 4
 
 gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
