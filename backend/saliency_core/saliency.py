@@ -22,23 +22,23 @@ def compute_saliency(image, num_segments):
   y_background = compute_boundary_seeds(segments, num_nodes)
   f_b = manifold_ranking(normalized_similarity, y_background, beta)
   f_b = (f_b - f_b.min()) / (f_b.max() - f_b.min())
-
-  # Foreground seeds (center superpixels)
-  x_coords = features[:, 3]
-  y_coords = features[:, 4]
-
-  dist_center = np.sqrt((x_coords - 0.5)**2 + (y_coords - 0.5)**2)
+  saliency_initial = 1 - f_b
 
   k = int(0.15 * num_nodes)  # 15%
-  indices = np.argsort(dist_center)[:k]
-
+  indices = np.argsort(saliency_initial)[-k:]
   y_foreground = np.zeros(num_nodes)
   y_foreground[indices] = 1
 
-  f_f = manifold_ranking(normalized_similarity, y_foreground, beta)
-  f_f = (f_f - f_f.min()) / (f_f.max() - f_f.min())
+  for _ in range(2):
+      f_f = manifold_ranking(normalized_similarity, y_foreground, beta)
+      f_f = (f_f - f_f.min()) / (f_f.max() - f_f.min())
 
-  saliency = f_f / (f_f + f_b + 1e-8)
+      saliency = f_f / (f_f + f_b + 1e-8)
+
+      indices = np.argsort(saliency)[-k:]
+      y_foreground = np.zeros(num_nodes)
+      y_foreground[indices] = 1
+
 
   saliency = saliency ** 2
   saliency_map = saliency[segments]
