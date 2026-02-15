@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from saliency import compute_saliency
 
-image = cv2.imread("./Test Images/realistic2_400.jpg")
+image = cv2.imread("./Test Images/realistic3_400.jpg")
 if image is None:
   print("Input not found")
   exit()
