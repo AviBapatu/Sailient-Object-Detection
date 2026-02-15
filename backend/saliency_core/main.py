@@ -5,7 +5,7 @@ from graph import build_adjacency, compute_weight_matrix, compute_degree_matrix,
 from ranking import  compute_boundary_seeds, manifold_ranking
 import numpy as np
 
-image = cv2.imread("./Test Images/hard_400.jpg")
+image = cv2.imread("./Test Images/simple_400.jpg")
 if image is None:
   print("Input not found")
   exit()
@@ -17,20 +17,36 @@ lab_image = rgb2lab(image)
 
 segments, num_nodes = compute_superpixels(image, 500)
 features = compute_features(lab_image, segments, num_nodes)
-print(features[:, :3].max(), features[:, :3].min())
+# print(features[:, :3].max(), features[:, :3].min())
 adjacency = build_adjacency(segments, num_nodes)
 
-sigma = 1.2
+sigma = 1.81
+beta = 0.9
 weights = compute_weight_matrix(features, adjacency, sigma)
 degree = compute_degree_matrix(weights)
 normalized_similarity = compute_normalized_similarity(weights, degree)
-y = compute_boundary_seeds(segments, num_nodes)
+# Background seeds
+y_background = compute_boundary_seeds(segments, num_nodes)
+f_b = manifold_ranking(normalized_similarity, y_background, beta)
+f_b = (f_b - f_b.min()) / (f_b.max() - f_b.min())
 
-beta = 0.9
-f = manifold_ranking(normalized_similarity, y, beta)
+# Foreground seeds (center superpixels)
+x_coords = features[:, 3]
+y_coords = features[:, 4]
 
-f_norm = (f - f.min()) / (f.max() - f.min())
-saliency = 1 - f_norm
+dist_center = np.sqrt((x_coords - 0.5)**2 + (y_coords - 0.5)**2)
+
+k = int(0.15 * num_nodes)  # 10%
+indices = np.argsort(dist_center)[:k]
+
+y_foreground = np.zeros(num_nodes)
+y_foreground[indices] = 1
+
+f_f = manifold_ranking(normalized_similarity, y_foreground, beta)
+f_f = (f_f - f_f.min()) / (f_f.max() - f_f.min())
+
+saliency = f_f / (f_f + f_b + 1e-8)
+
 saliency = saliency ** 2
 saliency_map = saliency[segments]
 
