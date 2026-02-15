@@ -2,10 +2,10 @@ import cv2
 from superpixels import compute_superpixels, compute_features
 from skimage.color import rgb2lab
 from graph import build_adjacency, compute_weight_matrix, compute_degree_matrix, compute_normalized_similarity
-from ranking import compute_boundary_seeds, manifold_ranking
+from ranking import  compute_boundary_seeds, manifold_ranking
 import numpy as np
 
-image = cv2.imread("./Test Images/simple_400.jpg")
+image = cv2.imread("./Test Images/hard_400.jpg")
 if image is None:
   print("Input not found")
   exit()
@@ -15,25 +15,32 @@ image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 lab_image = rgb2lab(image)
 # Converting image to LAB(L (Lighting), A channel(green, red), B channel(blue, yellow)) for uniform perception for human eye.)
 
-segments, num_nodes = compute_superpixels(lab_image, 300)
+segments, num_nodes = compute_superpixels(image, 500)
 features = compute_features(lab_image, segments, num_nodes)
+print(features[:, :3].max(), features[:, :3].min())
 adjacency = build_adjacency(segments, num_nodes)
 
-sigma = 1.81
+sigma = 1.2
 weights = compute_weight_matrix(features, adjacency, sigma)
 degree = compute_degree_matrix(weights)
 normalized_similarity = compute_normalized_similarity(weights, degree)
 y = compute_boundary_seeds(segments, num_nodes)
 
-beta = 0.99
+beta = 0.9
 f = manifold_ranking(normalized_similarity, y, beta)
 
 f_norm = (f - f.min()) / (f.max() - f.min())
 saliency = 1 - f_norm
-
+saliency = saliency ** 2
 saliency_map = saliency[segments]
-saliency_map = cv2.GaussianBlur(saliency_map, (11, 11), 0)
-saliency_map = saliency_map ** 4
+
+saliency_map = saliency_map.astype(np.float32)
+saliency_map = cv2.bilateralFilter(
+    saliency_map,
+    d=9,
+    sigmaColor=0.1,
+    sigmaSpace=15
+)
 
 gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
