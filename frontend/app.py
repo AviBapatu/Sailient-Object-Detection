@@ -22,7 +22,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🎯 Salient Object Detection")
+st.title("Salient Object Detection")
 st.markdown("""
 Extract the most prominent objects from your images using manifold ranking and superpixel segmentation.
 """)
