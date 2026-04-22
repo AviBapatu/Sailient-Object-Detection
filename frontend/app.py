@@ -115,11 +115,68 @@ else:
     # Show examples if available
     example_dir = os.path.join(backend_path, "Test Images")
     if os.path.exists(example_dir):
-        st.subheader("Example Images")
         examples = [f for f in os.listdir(example_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         if examples:
-            cols = st.columns(min(len(examples), 4))
-            for i, ex in enumerate(examples[:4]):
-                ex_path = os.path.join(example_dir, ex)
-                ex_img = Image.open(ex_path)
-                cols[i].image(ex_img, caption=ex, use_container_width=True)
+            st.divider()
+            st.subheader("Or try with an example image:")
+            
+            # Allow selecting an example image
+            selected_example = st.selectbox("Choose an example", ["None"] + examples)
+            
+            if selected_example != "None":
+                ex_path = os.path.join(example_dir, selected_example)
+                image = Image.open(ex_path).convert('RGB')
+                img_array = np.array(image)
+                
+                # Show detection logic for example image
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.subheader("Example Image")
+                    st.image(image, use_container_width=True)
+                
+                if st.button("Detect Salient Objects (Example)", type="primary"):
+                    with st.spinner("Computing saliency maps..."):
+                        # (Same logic as above, but for example)
+                        saliency_maps = []
+                        for s in scales:
+                            saliency_s = compute_saliency(img_array, s)
+                            saliency_maps.append(saliency_s)
+                        
+                        saliency_final = np.mean(saliency_maps, axis=0)
+                        saliency_final = saliency_final.astype(np.float32)
+                        saliency_final = cv2.bilateralFilter(saliency_final, d=bilateral_d, sigmaColor=bilateral_sigma_color, sigmaSpace=bilateral_sigma_space)
+                        
+                        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+                        gray_3c = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+                        gray_float = gray_3c.astype(np.float32) / 255.0
+                        image_float = img_array.astype(np.float32) / 255.0
+                        saliency_3c = np.stack([saliency_final]*3, axis=-1)
+                        output_float = saliency_3c * image_float + (1 - saliency_3c) * gray_float
+                        output = (output_float * 255).astype(np.uint8)
+                        
+                        with col2:
+                            st.subheader("Saliency Result")
+                            st.image(output, use_container_width=True)
+                        
+                        st.divider()
+                        res_col1, res_col2 = st.columns(2)
+                        with res_col1:
+                            st.subheader("Raw Saliency Map")
+                            st.image((saliency_final * 255).astype(np.uint8), use_container_width=True, channels="L")
+                        with res_col2:
+                            st.subheader("Heatmap")
+                            heatmap = cv2.applyColorMap((saliency_final * 255).astype(np.uint8), cv2.COLORMAP_JET)
+                            st.image(cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB), use_container_width=True)
+
+            st.divider()
+            st.subheader("Gallery of All Test Images")
+            # Show all examples in a grid
+            cols_per_row = 4
+            for i in range(0, len(examples), cols_per_row):
+                cols = st.columns(cols_per_row)
+                for j in range(cols_per_row):
+                    if i + j < len(examples):
+                        ex_name = examples[i + j]
+                        ex_path = os.path.join(example_dir, ex_name)
+                        ex_img = Image.open(ex_path)
+                        cols[j].image(ex_img, caption=ex_name, use_container_width=True)
